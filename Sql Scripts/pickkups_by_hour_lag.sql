@@ -61,12 +61,13 @@ FROM
 
 --Tag the data
 
-DECLARE @hourLead INT = 5
+--DECLARE @hourLead INT = 5
 
 BEGIN TRY DROP TABLE  dbo.pickups_train END TRY BEGIN CATCH END CATCH
 
 SELECT 
-		L.*
+		ROW_NUMBER() OVER (ORDER BY L.pickup_datetime) id
+		,L.*
 		,P.pickups target_pickups 
 		INTO dbo.pickups_train
 	FROM 
