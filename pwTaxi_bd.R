@@ -1,7 +1,7 @@
 
 #set up variables
 sqlConnString <- "Driver=SQL Server;Server=JrsSql2016e;Database=taxi;Uid=RServicesUser;Pwd=RServicesUser"
-trainTable <- "v_pickups_train"
+trainTable <- "t_pickups_train"
 testTable <- "v_pickups_test"
 
 #Column information
@@ -52,15 +52,19 @@ rxHistogram(~target_pickups|target_pickup_dw, data = trainDS)
 
 
 #build model
-F <- "target_pickups ~ target_pickup_hour +	target_pickup_dw + pickups_hour_lag_0 + pickups_hour_lag_1 +	
-      pickups_hour_lag_2 +	pickups_hour_lag_3 +	pickups_hour_lag_4 +	pickups_hour_lag_5 +	
-      pickups_hour_lag_6 +	pickups_hour_lag_7 +	pickups_date_lag_1 +	pickups_date_lag_2 +	
-      pickups_date_lag_3 +	pickups_date_lag_4 +	pickups_date_lag_5 +	pickups_date_lag_6 +	
-      pickups_date_lag_7 +"
+F <- "target_pickups ~ target_pickup_hour +	target_pickup_dw + pickups_hour_lag_0 + pickups_hour_lag_1 +
+      pickups_hour_lag_2 + pickups_hour_lag_3 +	pickups_hour_lag_4 + pickups_hour_lag_5 +
+      pickups_hour_lag_6 + pickups_hour_lag_7 + pickups_date_lag_1 + pickups_date_lag_2 +	
+      pickups_date_lag_3 + pickups_date_lag_4 + pickups_date_lag_5 + pickups_date_lag_6 +	
+      pickups_date_lag_7"
 
-lm <- rxLinMod(F,data = trainDS)
 
-summary(lm)
+bd <- rxBTrees(formula = F, data=trainDS,
+               maxDepth = 6, minSplit = 2, nTree = 50,
+               lossFunction = "gaussian", learningRate = 0.1)
+
+summary(bd)
+plot(bd)
 
 
 #Score the model
@@ -75,7 +79,7 @@ if (rxSqlServerTableExists(scoreTrainTable))
   rxSqlServerDropTable(scoreTrainTable)
 
 #Score the trainin data
-rxPredict(modelObject = lm,
+rxPredict(modelObject = bd,
           data = trainDS,
           outData = scoreTrainDS,
           predVarNames = "forecasted_pickups",
@@ -95,7 +99,7 @@ if (rxSqlServerTableExists(scoreTestTable))
   rxSqlServerDropTable(scoreTestTable)
 
 #Score the trainin data
-rxPredict(modelObject = lm,
+rxPredict(modelObject = bd,
           data = testDS,
           outData = scoreTestDS,
           predVarNames = "forecasted_pickups",
@@ -104,4 +108,4 @@ rxPredict(modelObject = lm,
           overwrite = TRUE)
 
 #Serialize the mode and save it in SQL
-lm.df <- data.frame(model=as.raw(serialize(lm, connection=NULL)))
+bd.df <- data.frame(model=as.raw(serialize(bd, connection=NULL)))

@@ -1,7 +1,7 @@
 
 #set up variables
 sqlConnString <- "Driver=SQL Server;Server=JrsSql2016e;Database=taxi;Uid=RServicesUser;Pwd=RServicesUser"
-trainTable <- "v_pickups_train"
+trainTable <- "t_pickups_train"
 testTable <- "v_pickups_test"
 
 #Column information
@@ -52,15 +52,16 @@ rxHistogram(~target_pickups|target_pickup_dw, data = trainDS)
 
 
 #build model
-F <- "target_pickups ~ target_pickup_hour +	target_pickup_dw + pickups_hour_lag_0 + pickups_hour_lag_1 +	
-      pickups_hour_lag_2 +	pickups_hour_lag_3 +	pickups_hour_lag_4 +	pickups_hour_lag_5 +	
-      pickups_hour_lag_6 +	pickups_hour_lag_7 +	pickups_date_lag_1 +	pickups_date_lag_2 +	
-      pickups_date_lag_3 +	pickups_date_lag_4 +	pickups_date_lag_5 +	pickups_date_lag_6 +	
-      pickups_date_lag_7 +"
+F <- "target_pickups ~ target_pickup_hour +	target_pickup_dw + pickups_hour_lag_0 + pickups_hour_lag_1 +
+      pickups_hour_lag_2 + pickups_hour_lag_3 +	pickups_hour_lag_4 + pickups_hour_lag_5 +
+      pickups_hour_lag_6 + pickups_hour_lag_7 + pickups_date_lag_1 + pickups_date_lag_2 +	
+      pickups_date_lag_3 + pickups_date_lag_4 + pickups_date_lag_5 + pickups_date_lag_6 +	
+      pickups_date_lag_7"
 
-lm <- rxLinMod(F,data = trainDS)
 
-summary(lm)
+rf <- rxDForest(formula = F, data=trainDS, verbose = 1)
+
+summary(rf)
 
 
 #Score the model
@@ -75,7 +76,7 @@ if (rxSqlServerTableExists(scoreTrainTable))
   rxSqlServerDropTable(scoreTrainTable)
 
 #Score the trainin data
-rxPredict(modelObject = lm,
+rxPredict(modelObject = rf,
           data = trainDS,
           outData = scoreTrainDS,
           predVarNames = "forecasted_pickups",
@@ -95,7 +96,7 @@ if (rxSqlServerTableExists(scoreTestTable))
   rxSqlServerDropTable(scoreTestTable)
 
 #Score the trainin data
-rxPredict(modelObject = lm,
+rxPredict(modelObject = rf,
           data = testDS,
           outData = scoreTestDS,
           predVarNames = "forecasted_pickups",
@@ -104,4 +105,4 @@ rxPredict(modelObject = lm,
           overwrite = TRUE)
 
 #Serialize the mode and save it in SQL
-lm.df <- data.frame(model=as.raw(serialize(lm, connection=NULL)))
+rf.df <- data.frame(model=as.raw(serialize(df, connection=NULL)))
