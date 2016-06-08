@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "\n#set up variables\nsqlConnString <- \"Driver=SQL Server;Server=JrsSql2016e;Database=taxi;Uid=RServicesUser;Pwd=RServicesUser\"\ntrainTable <- \"t_pickups_train\"\ntestTable <- \"v_pickups_test\"\n\n#Column information\nccColInfo <- list(\n  target_pickup_hour = list(\n    type = \"factor\",\n    levels = as.character(0:23)),\n  target_pickup_dw = list(\n    type = \"factor\",\n    levels = as.character(1:7),\n    newLevels = c(\"Sunday\",\"Monday\",\"Tuesday\",\"Wednesday\",\"Thursday\",\"Friday\",\"Saturday\"))\n)\n\n\n\n\n#Create the data set\ntrainDS <- RxSqlServerData(connectionString = sqlConnString,\n                             table = trainTable, rowsPerRead = 5000, colInfo = ccColInfo)\n\ntestDS <- RxSqlServerData(connectionString = sqlConnString,\n                           table = testTable, rowsPerRead = 5000, colInfo = ccColInfo)\n\n#Get some basic information on the table\nrxGetVarInfo(data = trainDS)\nrxGetVarInfo(data = testDS)\n\n#Need a local cache directory\nsqlShareDir <- paste(\"c:\\\\AllShare\\\\\", Sys.getenv(\"USERNAME\"), sep=\"\")\ndir.create(sqlShareDir, recursive = TRUE)\n\n#Set the compute context\nsqlCompute <- RxInSqlServer(connectionString = sqlConnString, shareDir = sqlShareDir,\n                            wait = TRUE,  consoleOutput = TRUE)\n\n# Set the compute context to compute in SQL Server\nrxSetComputeContext(sqlCompute)\n#rxSetComputeContext(computeContext = 'local')\n\n#Display summary statistics\nrxSummary(formula = ~target_pickup_hour + target_pickup_dw + target_pickups, data = trainDS)\n\n\n#Perform some visualizations\nrxHistogram(~target_pickups, data = trainDS)\n\nrxHistogram(~target_pickups|target_pickup_dw, data = trainDS)\n\n\n#build model\nF <- \"target_pickups ~ target_pickup_hour +\ttarget_pickup_dw + pickups_hour_lag_0 + pickups_hour_lag_1 +\n      pickups_hour_lag_2 + pickups_hour_lag_3 +\tpickups_hour_lag_4 + pickups_hour_lag_5 +\n      pickups_hour_lag_6 + pickups_hour_lag_7 + pickups_date_lag_1 + pickups_date_lag_2 +\t\n      pickups_date_lag_3 + pickups_date_lag_4 + pickups_date_lag_5 + pickups_date_lag_6 +\t\n      pickups_date_lag_7\"\n\n\nbd <- rxBTrees(formula = F, data=trainDS,\n               maxDepth = 6, minSplit = 2, nTree = 50,\n               lossFunction = \"gaussian\", learningRate = 0.1)\n\nsummary(bd)\nplot(bd)\n\n\n#Score the model\n#Training data\nscoreTrainTable <- \"pickups_score_train\"\n\nscoreTrainDS <- RxSqlServerData(table = scoreTrainTable,\n                                  connectionString = sqlConnString, rowsPerRead = 5000 )\n\n#Drop the destination table if exists\nif (rxSqlServerTableExists(scoreTrainTable))\n  rxSqlServerDropTable(scoreTrainTable)\n\n#Score the trainin data\nrxPredict(modelObject = bd,\n          data = trainDS,\n          outData = scoreTrainDS,\n          predVarNames = \"forecasted_pickups\",\n          writeModelVars = FALSE,\n          extraVarsToWrite = c(\"id\",\"target_pickups\"),\n          overwrite = TRUE)\n\n\n#Testing data\nscoreTestTable <- \"pickups_score_test\"\n\nscoreTestDS <- RxSqlServerData(table = scoreTestTable,\n                                  connectionString = sqlConnString, rowsPerRead = 5000 )\n\n#Drop the destination table if exists\nif (rxSqlServerTableExists(scoreTestTable))\n  rxSqlServerDropTable(scoreTestTable)\n\n#Score the trainin data\nrxPredict(modelObject = bd,\n          data = testDS,\n          outData = scoreTestDS,\n          predVarNames = \"forecasted_pickups\",\n          writeModelVars = FALSE,\n          extraVarsToWrite = c(\"id\",\"target_pickups\"),\n          overwrite = TRUE\n          )",
+    "created" : 1465390908655.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4025863686",
+    "id" : "E0844B32",
+    "lastKnownWriteTime" : 1465414550,
+    "last_content_update" : 1465414550594,
+    "path" : "~/GitHub/pwTaxi/pwTaxi_bd.R",
+    "project_path" : "pwTaxi_bd.R",
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

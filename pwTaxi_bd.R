@@ -105,7 +105,5 @@ rxPredict(modelObject = bd,
           predVarNames = "forecasted_pickups",
           writeModelVars = FALSE,
           extraVarsToWrite = c("id","target_pickups"),
-          overwrite = TRUE)
-
-#Serialize the mode and save it in SQL
-bd.df <- data.frame(model=as.raw(serialize(bd, connection=NULL)))
+          overwrite = TRUE
+          )
